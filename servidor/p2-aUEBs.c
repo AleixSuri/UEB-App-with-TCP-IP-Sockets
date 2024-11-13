@@ -56,10 +56,10 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1);
 /* -1 si hi ha un error en la interfície de sockets.                      */
 int UEBs_IniciaServ(int *SckEsc, int portTCPser, char *TextRes)
 {
-    int *CodiRes;
+    int CodiRes;
 	*SckEsc = TCP_CreaSockServidor("0.0.0.0", portTCPser);
     if(*SckEsc == -1){
-        sprintf(TextRes, "TCP_CreaSockServidor(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_CreaSockServidor(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
@@ -80,7 +80,9 @@ int UEBs_IniciaServ(int *SckEsc, int portTCPser, char *TextRes)
 int UEBs_AcceptaConnexio(int SckEsc, char *TextRes)
 {
     int CodiRes;
-    int res = TCP_AcceptaConnexio(SckEsc, NULL, NULL);
+    char ipRem[16];
+    int portRem;
+    int res = TCP_AcceptaConnexio(SckEsc,ipRem, &portRem);
     if(res == -1){
         sprintf(TextRes, "TCP_AcceptaConnexio(): %s", T_ObteTextRes(&CodiRes));
         TCP_TancaSock(res);
@@ -113,13 +115,13 @@ int UEBs_AcceptaConnexio(int SckEsc, char *TextRes)
 /*  comença per /, fitxer no es pot llegir, fitxer massa gran, etc.).     */
 int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes)
 {
-    int *CodiRes;
+    int CodiRes;
     char *info1; //nom fitxer
     int *long1; //mida caracters nom fitxer
     
     int res = RepiDesconstMis(SckCon, TipusPeticio, info1, long1);
     if(res == -1){
-        sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
     else if(res == -2){
@@ -170,7 +172,7 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
 
         int res2 = ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
         if(res2 == -1){
-            sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(CodiRes));
+            sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
             return -1;
         }
         else if(res2 == -2){
@@ -195,10 +197,10 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
 /*  -1 si hi ha un error a la interfície de sockets.                      */
 int UEBs_TancaConnexio(int SckCon, char *TextRes)
 {
-    int *CodiRes;
+    int CodiRes;
 	int res = TCP_TancaSock(SckCon);
 	if(res == -1){
-        sprintf(TextRes, "TCP_TancaSock(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TancaSock(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
@@ -223,17 +225,17 @@ int UEBs_TancaConnexio(int SckCon, char *TextRes)
 /*  -1 si hi ha un error a la interfície de sockets.                      */
 int UEBs_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPrem, int *portTCPrem, char *TextRes)
 {
-    int *CodiRes;
+    int CodiRes;
     int res1 = TCP_TrobaAdrSockLoc(SckCon, IPloc, portTCPloc);
     int res2 = TCP_TrobaAdrSockRem(SckCon, IPrem, portTCPrem);
 
     if((res1 == -1)){
-        sprintf(TextRes, "TCP_TrobaAdrSockLoc(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TrobaAdrSockLoc(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
     if((res2 == -1)){
-        sprintf(TextRes, "TCP_TrobaAdrSockRem(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TrobaAdrSockRem(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 

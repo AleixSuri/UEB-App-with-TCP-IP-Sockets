@@ -24,6 +24,7 @@
 /* Definició de constants, p.e.,                                          */
 
 /* #define XYZ       1500                                                 */
+#define MAX_FITX  9999
 
 /* Declaració de funcions INTERNES que es fan servir en aquest fitxer     */
 /* (les  definicions d'aquestes funcions es troben més avall) per així    */
@@ -35,7 +36,7 @@ int main(int argc,char *argv[])
 {
  /* Declaració de variables, p.e., int n;                                 */
     int op;
-    char *TextRes;
+    char TextRes[300];
     int sckCon;
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
@@ -44,21 +45,21 @@ int main(int argc,char *argv[])
     scanf("%d", &op);
     if(op != 0){
         while(op != 0){
-            char *IPser;
+            char IPser[16];
             int portTCPser;
-            char *NomFitx; 
-            char *Fitx;
-            int *LongFitx;
-
-            char *IPloc;
-            int *portTCPloc;
-            char *IPrem;
-            int *portTCPrem;
+            char NomFitx[200]; 
+            char Fitx[MAX_FITX];
+            int LongFitx;
 
             printf("@IPservidor:\n");
             scanf("%s", IPser);
             printf("#portTCPservidor:\n");
             scanf("%d", &portTCPser);
+
+            if(portTCPser == 0){
+                portTCPser = 6000;
+            }
+
             printf("nom_fitxer:\n");
             scanf("%s", NomFitx);
 
@@ -67,15 +68,19 @@ int main(int argc,char *argv[])
                 exit(-1);
             }
 
-            if(UEBc_TrobaAdrSckConnexio(sckCon, IPloc, portTCPloc, IPrem, portTCPrem, TextRes) == -1){
+            char IPloc[16];
+            int portTCPloc;
+            char IPrem[16];
+            int portTCPrem;
+            if(UEBc_TrobaAdrSckConnexio(sckCon, IPloc, &portTCPloc, IPrem, &portTCPrem, TextRes) == -1){
                 printf("UEBc_TrobaAdrSckConnexio(): %s\n", TextRes);
                 exit(-1);
             }
-            printf("Petició OBT, @IP:#portTCP servidor %s:%d, fitxer %s\n", IPser, portTCPser, NomFitx);
-            printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, *portTCPloc, IPrem, *portTCPrem);
+            printf("\nPetició OBT, @IP:#portTCP servidor %s:%d, fitxer %s\n", IPser, portTCPser, NomFitx);
+            printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
 
             
-            int obtFit = UEBc_ObteFitxer(sckCon, NomFitx, Fitx, LongFitx, TextRes);
+            int obtFit = UEBc_ObteFitxer(sckCon, NomFitx, Fitx, &LongFitx, TextRes);
             if(obtFit == -1 || obtFit == -2){
                 printf("UEBc_ObteFitxer(): %s\n", TextRes);
                 exit(-1);
@@ -87,7 +92,7 @@ int main(int argc,char *argv[])
             else{
                 printf("UEBc_ObteFitxer(): %s\n\n", TextRes);
                 
-                if(write(0, Fitx, *LongFitx) == -1){
+                if(write(0, Fitx, LongFitx) == -1){
                     perror("Error en mostrar el contingut del fitxer.");
                     exit(-1);
                 }
@@ -100,7 +105,7 @@ int main(int argc,char *argv[])
                         exit(-1);
                     }
                     
-                    int n = write(file, Fitx, *LongFitx);
+                    int n = write(file, Fitx, LongFitx);
                     if(n == -1){
                         perror("Error al escriure el fitxer per desar-lo.");
                         close(file);

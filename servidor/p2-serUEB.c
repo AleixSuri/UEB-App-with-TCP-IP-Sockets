@@ -34,7 +34,7 @@
 int main(int argc,char *argv[])
 {
  /* Declaració de variables, p.e., int n;                                 */
-    char *TextRes;
+    char TextRes[300];
     
     int portTCP;
     int sck;
@@ -72,20 +72,20 @@ int main(int argc,char *argv[])
             printf("UEBs_AcceptaConnexio(): %s\n", TextRes);
             exit(-1);
         }
+        printf("hola\n");
+        char IPloc[16];
+        int portTCPloc;
+        char IPrem[16];
+        int portTCPrem;
         
-        char *IPloc;
-        int *portTCPloc;
-        char *IPrem;
-        int *portTCPrem;
-        
-        if(UEBs_TrobaAdrSckConnexio(sckCon, IPloc, portTCPloc, IPrem, portTCPrem, TextRes) == -1){
+        if(UEBs_TrobaAdrSckConnexio(sckCon, IPloc, &portTCPloc, IPrem, &portTCPrem, TextRes) == -1){
             printf("UEBc_TrobaAdrSckConnexio(): %s\n", TextRes);
             exit(-1);
         }
-        printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, *portTCPloc, IPrem, *portTCPrem);
+        printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
         
-        char *NomFitx;
-        char *TipusPeticio;
+        char NomFitx[200];
+        char TipusPeticio[4];
         int servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
         printf("Petició OBT del fitxer %s", NomFitx);
         while(servPet != -3){

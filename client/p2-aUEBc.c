@@ -58,21 +58,21 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1);
 /* -1 si hi ha un error a la interfície de sockets.                       */
 int UEBc_DemanaConnexio(const char *IPser, int portTCPser, char *TextRes)
 {
-    int *CodiRes;
-	int res;
-    res = TCP_CreaSockClient("0.0.0.0", 0);
-    if(res == -1){
-        sprintf(TextRes, "TCP_CreaSockClient(): %s", T_ObteTextRes(CodiRes));
+    int CodiRes;
+	int sck = TCP_CreaSockClient("0.0.0.0", 0);
+    
+    if(sck == -1){
+        sprintf(TextRes, "TCP_CreaSockClient(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     } 
-
-    int sck = TCP_DemanaConnexio(sck, IPser, portTCPser);
-    if(sck == -1){
-        sprintf(TextRes, "TCP_DemanaConnexio(): %s", T_ObteTextRes(CodiRes));
+    
+    int res = TCP_DemanaConnexio(sck, IPser, portTCPser);
+    if(res == -1){
+        sprintf(TextRes, "TCP_DemanaConnexio(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
-    strcpy(TextRes, "Socket creat amb èxit\0");
+    sprintf(TextRes, "Socket creat amb èxit\0");
     return sck;
 }
 
@@ -96,12 +96,12 @@ int UEBc_DemanaConnexio(const char *IPser, int portTCPser, char *TextRes)
 /* -3 si l'altra part tanca la connexió.                                  */
 int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, char *TextRes)
 {
-	int *CodiRes;
+	int CodiRes;
     
     // Envia la petició amb el tipus "OBT" per demanar el fitxer
     int res = ConstiEnvMis(SckCon, "OBT", NomFitx, strlen(NomFitx));
     if(res == -1){
-        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
     else if(res == -2){
@@ -114,7 +114,7 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
     int *long1;
     int res2 = RepiDesconstMis(SckCon, tipus, info1, long1);
     if(res2 == -1){
-        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
     else if(res2 == -2){
@@ -151,14 +151,14 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
 /*  -1 si hi ha un error a la interfície de sockets.                      */
 int UEBc_TancaConnexio(int SckCon, char *TextRes)
 {
-    int *CodiRes;
+    int CodiRes;
     int res = TCP_TancaSock(SckCon);
 	if(res == -1){
-        sprintf(TextRes, "TCP_TancaSock(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TancaSock(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
-    strcpy(TextRes, "Socket client tancat correctament\0");
+    sprintf(TextRes, "Socket client tancat correctament\0");
     return res;
 }
 
@@ -179,17 +179,19 @@ int UEBc_TancaConnexio(int SckCon, char *TextRes)
 /*  -1 si hi ha un error a la interfície de sockets.                      */
 int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPrem, int *portTCPrem, char *TextRes)
 {
-    int *CodiRes;
-    int res1 = TCP_TrobaAdrSockLoc(SckCon, IPloc, portTCPloc);
-    int res2 = TCP_TrobaAdrSockRem(SckCon, IPrem, portTCPrem);
+    int CodiRes;
+    char ipRem[16];
+    char ipLoc[16];
+    int res1 = TCP_TrobaAdrSockLoc(SckCon, ipLoc, portTCPloc);
+    int res2 = TCP_TrobaAdrSockRem(SckCon, ipRem, portTCPrem);
 
     if((res1 == -1)){
-        sprintf(TextRes, "TCP_TrobaAdrSockLoc(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TrobaAdrSockLoc(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
     if((res2 == -1)){
-        sprintf(TextRes, "TCP_TrobaAdrSockRem(): %s", T_ObteTextRes(CodiRes));
+        sprintf(TextRes, "TCP_TrobaAdrSockRem(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
 
