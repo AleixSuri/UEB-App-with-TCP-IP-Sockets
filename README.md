@@ -1,1 +1,3 @@
 # UEB-App-with-TCP-IP-Sockets
+
+## PRÀCTICA 2: L’APLICACIÓ UEB AMB SOCKETS TCP/IP
