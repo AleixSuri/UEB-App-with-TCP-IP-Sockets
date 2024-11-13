@@ -82,7 +82,7 @@ int main(int argc,char *argv[])
             printf("UEBc_TrobaAdrSckConnexio(): %s\n", TextRes);
             exit(-1);
         }
-        printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
+        printf("Connexió TCP @sck ser %s:%d @sck cli %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
         
         char NomFitx[200];
         char TipusPeticio[4];
