@@ -87,9 +87,12 @@ int main(int argc,char *argv[])
         char NomFitx[200];
         char TipusPeticio[4];
         int servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
-        
-        printf("Petició %s del fitxer %s ", TipusPeticio, NomFitx);
         while(servPet != -3){
+            memset(NomFitx, 0, sizeof(NomFitx));
+            memset(TipusPeticio, 0, sizeof(TipusPeticio));
+            if(servPet != -3){
+                printf("Petició %s del fitxer %s\n", TipusPeticio, NomFitx);
+            }
             if(servPet == -1 || servPet == -2 || servPet == -4){
                 printf("UEBc_ServeixPeticio(): %s\n\n", TextRes);
                 exit(-1);
@@ -100,9 +103,8 @@ int main(int argc,char *argv[])
             }
             
             servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
-            printf("Petició OBT del fitxer %s\n", NomFitx);    
-            printf("\nUEBc_ServeixPeticio(): %s\n", TextRes);    
         }
+        printf("UEBc_ServeixPeticio(): %s\n\n", TextRes);
     }
 }
 
