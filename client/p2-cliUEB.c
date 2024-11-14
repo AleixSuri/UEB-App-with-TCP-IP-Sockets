@@ -40,34 +40,37 @@ int main(int argc,char *argv[])
     int sckCon;
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
-    
     printf("Vols sortir o fer una petició? (0-Sortir, 1-Obtenir):\n");
     scanf("%d", &op);
-    if(op != 0){
+    if(op != 0 && op == 1){
+        // Obtenir informacio de peticio
+        TextRes[0] = '\0';
+        char IPser[16];
+        int portTCPser;
+        char NomFitx[200]; 
+        char Fitx[MAX_FITX];
+        int LongFitx;
+
+        printf("@IPservidor:\n");
+        scanf("%s", IPser);
+        printf("#portTCPservidor:\n");
+        scanf("%d", &portTCPser);
+
+        if(portTCPser == 0){
+            portTCPser = 6000;
+        }
+
+        printf("nom_fitxer:\n");
+        scanf("%s", NomFitx);
+
+        // Demana connexio
+        if((sckCon = UEBc_DemanaConnexio(IPser, portTCPser, TextRes)) == -1){
+            printf("UEBc_DemanaConnexio(): %s\n", TextRes);
+            exit(-1);
+        }
+
         while(op != 0){
-            char IPser[16];
-            int portTCPser;
-            char NomFitx[200]; 
-            char Fitx[MAX_FITX];
-            int LongFitx;
-
-            printf("@IPservidor:\n");
-            scanf("%s", IPser);
-            printf("#portTCPservidor:\n");
-            scanf("%d", &portTCPser);
-
-            if(portTCPser == 0){
-                portTCPser = 6000;
-            }
-
-            printf("nom_fitxer:\n");
-            scanf("%s", NomFitx);
-
-            if((sckCon = UEBc_DemanaConnexio(IPser, portTCPser, TextRes)) == -1){
-                printf("UEBc_DemanaConnexio(): %s\n", TextRes);
-                exit(-1);
-            }
-
+            // Mostrar @sockets
             char IPloc[16];
             int portTCPloc;
             char IPrem[16];
@@ -79,7 +82,7 @@ int main(int argc,char *argv[])
             printf("\nPetició OBT, @IP:#portTCP servidor %s:%d, fitxer %s\n", IPser, portTCPser, NomFitx);
             printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
 
-            
+            // Obtenir fitxer
             int obtFit = UEBc_ObteFitxer(sckCon, NomFitx, Fitx, &LongFitx, TextRes);
             if(obtFit == -1 || obtFit == -2){
                 printf("UEBc_ObteFitxer(): %s\n", TextRes);
@@ -92,11 +95,13 @@ int main(int argc,char *argv[])
             else{
                 printf("UEBc_ObteFitxer(): %s\n\n", TextRes);
                 
+                // Mostrar fitxer
                 if(write(1, Fitx, LongFitx) == -1){
                     perror("Error en mostrar el contingut del fitxer.");
                     exit(-1);
                 }
 
+                // Guardar fitxer
                 if(obtFit == 0){
                     char nomFitxer[200];
                     strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
@@ -120,10 +125,47 @@ int main(int argc,char *argv[])
                 }
             } 
 
+            // Tornar a demanar?
             printf("\n\nVols obtenir un fitxer o acabar? (1-Obtenir, 0-Acabar):\n");
             scanf("%d", &op);
-        }
+            if(op != 0 && op == 1){
+                // Netejar variables i demanar informacio
+                char IPserAux[16];
+                strcpy(IPserAux, IPser);
+                int portTCPserAux = portTCPser;
 
+                memset(TextRes, 0, sizeof(TextRes));
+                memset(IPser, 0, sizeof(IPser));
+                memset(NomFitx, 0, sizeof(NomFitx));
+                memset(Fitx, 0, sizeof(Fitx));
+                 
+                printf("@IPservidor:\n");
+                scanf("%s", IPser);
+                printf("#portTCPservidor:\n");
+                scanf("%d", &portTCPser);
+
+                if(portTCPser == 0){
+                    portTCPser = 6000;
+                }
+
+                printf("nom_fitxer:\n");
+                scanf("%s", NomFitx);
+
+                // Si es vol conectar a un altre servidor...
+                if((strcmp(IPser, IPserAux) != 0) || (portTCPser != portTCPserAux)){
+                    if(UEBc_TancaConnexio(sckCon, TextRes) == -1){
+                        printf("UEBc_TancaConnexio(): %s", TextRes);
+                        exit(-1);
+                    }
+
+                    if((sckCon = UEBc_DemanaConnexio(IPser, portTCPser, TextRes)) == -1){
+                        printf("UEBc_DemanaConnexio(): %s\n", TextRes);
+                        exit(-1);
+                    }
+                }
+            }
+        }
+        // Tanca connexio
         if(UEBc_TancaConnexio(sckCon, TextRes) == -1){
             printf("UEBc_TancaConnexio(): %s", TextRes);
             exit(-1);

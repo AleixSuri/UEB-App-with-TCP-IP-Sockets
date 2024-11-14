@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "p2-tTCP.h"
 #include "p2-aUEBc.h"
@@ -109,6 +110,7 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
         return -2;
     }
 
+    // Rebre fitxer del servidor
     char tipus[4];
     char info1[9999];
     int long1;
@@ -130,7 +132,7 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
     memcpy(Fitx, info1, long1);
     *LongFitx = long1;
     if (strcmp(tipus, "COR") == 0) {
-        // El fitxer existeix
+        // El fitxer existeix al servidor
         sprintf(TextRes, "Tot bé, el fitxer existeix al servidor\0");
         return 0;
     }
@@ -235,6 +237,7 @@ int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
 /* -2 si protocol és incorrecte (longitud camps, tipus de peticio).       */
 int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
+    // Ajuntar missatge PUEB
     char SeqBytes[10006];
     int campTipus = (int)strlen(tipus);
 
@@ -242,13 +245,14 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
         return -2;
     }
 
-    char longAux[4];
+    char longAux[5];
     sprintf(longAux, "%.4d", long1);
 
     memcpy(SeqBytes, tipus, campTipus);
     memcpy(SeqBytes+campTipus, longAux, 4);
     memcpy(SeqBytes+campTipus+4, info1, long1);
 
+    // Envia missatge
     if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
         return -1;
     }
@@ -273,6 +277,7 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 /* -3 si l'altra part tanca la connexió.                                  */
 int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
 {
+    // Desglossa missatge PUEB
 	char SeqBytes[10006];
     int bytesRebuts = TCP_Rep(SckCon, SeqBytes, sizeof(SeqBytes));
     
