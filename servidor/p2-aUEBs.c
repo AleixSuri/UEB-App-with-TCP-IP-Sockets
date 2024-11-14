@@ -144,7 +144,7 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
 
 
     int file = open(nomFitxer, O_RDONLY);
-    char tipusEnv[3]; 
+    char tipusEnv[4]; 
     int longEnv;
     char infoEnv[10000];
     if(file == -1 ){ //fitxer no existeix
@@ -165,7 +165,7 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
             return -4;
         }
 
-        memcpy(tipusEnv, "COR", 3);
+        strcpy(tipusEnv, "COR");
         longEnv = bytesFitxer;
         memcpy(infoEnv, contingutFitxer, longEnv);
         close(file);
@@ -288,7 +288,7 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
 	char SeqBytes[10006];
     int campTipus = (int)strlen(tipus);
-
+printf(" %d,   %d", campTipus, long1);
     if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") == 0)){
         return -2;
     }
