@@ -100,10 +100,9 @@ int main(int argc,char *argv[])
             }
             
             servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
-            printf("Petició OBT del fitxer %s\n", NomFitx);        
+            printf("Petició OBT del fitxer %s\n", NomFitx);    
+            printf("\nUEBc_ServeixPeticio(): %s\n", TextRes);    
         }
-
-        printf("UEBc_ServeixPeticio(): %s\n", TextRes);
     }
 }
 

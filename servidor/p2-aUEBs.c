@@ -288,7 +288,6 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
 	char SeqBytes[10006];
     int campTipus = (int)strlen(tipus);
-printf(" %d,   %d", campTipus, long1);
     if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") == 0)){
         return -2;
     }

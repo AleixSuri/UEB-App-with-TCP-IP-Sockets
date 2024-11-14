@@ -92,28 +92,29 @@ int main(int argc,char *argv[])
             else{
                 printf("UEBc_ObteFitxer(): %s\n\n", TextRes);
                 
-                if(write(0, Fitx, LongFitx) == -1){
+                if(write(1, Fitx, LongFitx) == -1){
                     perror("Error en mostrar el contingut del fitxer.");
                     exit(-1);
                 }
 
                 if(obtFit == 0){
-
-                    int file = open(NomFitx, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                    char nomFitxer[200];
+                    strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
+                    int file = open(nomFitxer, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
                     if(file == -1){
-                        perror("Error al obrir el fitxer per desar-lo.");
+                        perror("\nError al obrir el fitxer per desar-lo.");
                         exit(-1);
                     }
                     
                     int n = write(file, Fitx, LongFitx);
                     if(n == -1){
-                        perror("Error al escriure el fitxer per desar-lo.");
+                        perror("\nError al escriure el fitxer per desar-lo.");
                         close(file);
                         exit(-1);
                     }
 
                     if(close(file) == -1){
-                        perror("Error al tancar el fitxer desat.");
+                        perror("\nError al tancar el fitxer desat.");
                         exit(-1);
                     }
                 }
