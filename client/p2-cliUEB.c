@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "p2-aUEBc.h"
 
@@ -38,6 +39,11 @@ int main(int argc,char *argv[])
     int op;
     char TextRes[300];
     int sckCon;
+
+    // Variables per mesurar el temps
+    struct timespec start, end;
+    double elapsed_time;
+    
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
     printf("Vols sortir o fer una petició? (0-Sortir, 1-Obtenir):\n");
@@ -83,6 +89,8 @@ int main(int argc,char *argv[])
             printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
 
             // Obtenir fitxer
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            
             int obtFit = UEBc_ObteFitxer(sckCon, NomFitx, Fitx, &LongFitx, TextRes);
             if(obtFit == -1 || obtFit == -2){
                 printf("UEBc_ObteFitxer(): %s\n", TextRes);
@@ -92,38 +100,44 @@ int main(int argc,char *argv[])
                 printf("UEBc_ObteFitxer(): %s\n", TextRes);
                 exit(0);
             }
-            else{
-                printf("UEBc_ObteFitxer(): %s\n\n", TextRes);
+            
+            printf("UEBc_ObteFitxer(): %s\n\n", TextRes);
+            
+            // Mostrar fitxer
+            if(write(1, Fitx, LongFitx) == -1){
+                perror("Error en mostrar el contingut del fitxer.");
+                exit(-1);
+            }
+
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            // Calcular temps transcorregut
+            elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+            // Guardar fitxer
+            if(obtFit == 0){
+                char nomFitxer[200];
+                strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
+                int file = open(nomFitxer, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                if(file == -1){
+                    perror("\nError al obrir el fitxer per desar-lo.");
+                    exit(-1);
+                }
                 
-                // Mostrar fitxer
-                if(write(1, Fitx, LongFitx) == -1){
-                    perror("Error en mostrar el contingut del fitxer.");
+                int n = write(file, Fitx, LongFitx);
+                if(n == -1){
+                    perror("\nError al escriure el fitxer per desar-lo.");
+                    close(file);
                     exit(-1);
                 }
 
-                // Guardar fitxer
-                if(obtFit == 0){
-                    char nomFitxer[200];
-                    strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
-                    int file = open(nomFitxer, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-                    if(file == -1){
-                        perror("\nError al obrir el fitxer per desar-lo.");
-                        exit(-1);
-                    }
-                    
-                    int n = write(file, Fitx, LongFitx);
-                    if(n == -1){
-                        perror("\nError al escriure el fitxer per desar-lo.");
-                        close(file);
-                        exit(-1);
-                    }
-
-                    if(close(file) == -1){
-                        perror("\nError al tancar el fitxer desat.");
-                        exit(-1);
-                    }
+                if(close(file) == -1){
+                    perror("\nError al tancar el fitxer desat.");
+                    exit(-1);
                 }
-            } 
+            }
+
+            // Mostrar el temps
+            printf("\nTemps de resposta: %d \n", elapsed_time);
 
             // Tornar a demanar?
             printf("\n\nVols obtenir un fitxer o acabar? (1-Obtenir, 0-Acabar):\n");
