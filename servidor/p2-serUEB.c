@@ -72,7 +72,7 @@ int main(int argc,char *argv[])
             printf("UEBs_AcceptaConnexio(): %s\n", TextRes);
             exit(-1);
         }
-        printf("hola\n");
+        
         char IPloc[16];
         int portTCPloc;
         char IPrem[16];
@@ -87,7 +87,8 @@ int main(int argc,char *argv[])
         char NomFitx[200];
         char TipusPeticio[4];
         int servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
-        printf("Petició OBT del fitxer %s", NomFitx);
+        
+        printf("Petició %s del fitxer %s ", TipusPeticio, NomFitx);
         while(servPet != -3){
             if(servPet == -1 || servPet == -2 || servPet == -4){
                 printf("UEBc_ServeixPeticio(): %s\n\n", TextRes);

@@ -38,8 +38,8 @@
 int TCP_CreaSockClient(const char *IPloc, int portTCPloc)
 {
 	struct sockaddr_in adrloc;
-	int scon, i;
-	scon = socket(AF_INET,SOCK_STREAM,0);
+	int i;
+	int scon = socket(AF_INET,SOCK_STREAM,0);
 	
 	adrloc.sin_family=AF_INET;
 	adrloc.sin_port=htons(portTCPloc);
@@ -66,10 +66,9 @@ int TCP_CreaSockClient(const char *IPloc, int portTCPloc)
 /* -1 si hi ha error.                                                     */
 int TCP_CreaSockServidor(const char *IPloc, int portTCPloc)
 {
-	int sesc;
 	int i;
 	struct sockaddr_in adrloc;
-	sesc = socket(AF_INET,SOCK_STREAM,0);
+	int sesc = socket(AF_INET,SOCK_STREAM,0);
 		
 	adrloc.sin_family=AF_INET;
 	adrloc.sin_port=htons(portTCPloc);
@@ -111,8 +110,7 @@ int TCP_DemanaConnexio(int Sck, const char *IPrem, int portTCPrem)
 	adrrem.sin_addr.s_addr=inet_addr(IPrem);
 	for(i=0;i<8;i++){adrrem.sin_zero[i]='\0';}
 
-	int connexio;
-	connexio = connect(Sck,(struct sockaddr*)&adrrem,sizeof(adrrem));
+	int connexio = connect(Sck,(struct sockaddr*)&adrrem,sizeof(adrrem));
 	
 	return connexio;
 }
@@ -137,8 +135,7 @@ int TCP_AcceptaConnexio(int Sck, char *IPrem, int *portTCPrem)
 {
 	socklen_t long_adrrem = sizeof(struct sockaddr_in);
 	struct sockaddr_in adrrem;
-	int scon;
-	scon = accept(Sck,(struct sockaddr*)&adrrem, &long_adrrem);
+	int scon = accept(Sck,(struct sockaddr*)&adrrem, &long_adrrem);
  
 	IPrem = inet_ntoa(adrrem.sin_addr);
 	*portTCPrem = ntohs(adrrem.sin_port);
@@ -158,7 +155,7 @@ int TCP_AcceptaConnexio(int Sck, char *IPrem, int *portTCPrem)
 /* -1 si hi ha error.                                                     */
 int TCP_Envia(int Sck, const char *SeqBytes, int LongSeqBytes)
 {
-	return write(Sck,SeqBytes,LongSeqBytes);
+	return write(Sck, SeqBytes, LongSeqBytes);
 }
 
 /* Rep a través del socket TCP “connectat” d’identificador “Sck” una      */
@@ -175,7 +172,7 @@ int TCP_Envia(int Sck, const char *SeqBytes, int LongSeqBytes)
 /* -1 si hi ha error.                                                     */
 int TCP_Rep(int Sck, char *SeqBytes, int LongSeqBytes)
 {
-	return read(Sck,SeqBytes,LongSeqBytes);
+	return read(Sck, SeqBytes, LongSeqBytes);
 }
 
 /* S’allibera (s’esborra) el socket TCP d’identificador “Sck”; si “Sck”   */
@@ -204,8 +201,7 @@ int TCP_TrobaAdrSockLoc(int Sck, char *IPloc, int *portTCPloc)
 	socklen_t long_addrloc = sizeof(struct sockaddr_in);
 	struct sockaddr_in addrloc;
 	
-	int res;
-	res = getsockname(Sck, (struct sockaddr *)&addrloc, &long_addrloc);
+	int res = getsockname(Sck, (struct sockaddr *)&addrloc, &long_addrloc);
 	
 	strcpy(IPloc, inet_ntoa(addrloc.sin_addr));
 	*portTCPloc = ntohs(addrloc.sin_port);
@@ -228,13 +224,10 @@ int TCP_TrobaAdrSockRem(int Sck, char *IPrem, int *portTCPrem)
 	socklen_t long_addrem = sizeof(struct sockaddr_in);
 	struct sockaddr_in addrem;
 	
-	int res;
-	res = getpeername(Sck, (struct sockaddr *)&addrem, &long_addrem);
+	int res = getpeername(Sck, (struct sockaddr *)&addrem, &long_addrem);
 	
-	if(IPrem != NULL && portTCPrem != NULL){
-		IPrem = inet_ntoa(addrem.sin_addr);
-		*portTCPrem = ntohs(addrem.sin_port);
-	}
+	strcpy(IPrem, inet_ntoa(addrem.sin_addr));
+	*portTCPrem = ntohs(addrem.sin_port);
 	
 	return res;
 }

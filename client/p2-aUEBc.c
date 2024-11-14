@@ -99,7 +99,7 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
 	int CodiRes;
     
     // Envia la petició amb el tipus "OBT" per demanar el fitxer
-    int res = ConstiEnvMis(SckCon, "OBT", NomFitx, strlen(NomFitx));
+    int res = ConstiEnvMis(SckCon, "OBT", NomFitx, (int)strlen(NomFitx));
     if(res == -1){
         sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -109,12 +109,13 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
         return -2;
     }
 
-    char *tipus;
-    char *info1;
-    int *long1;
-    int res2 = RepiDesconstMis(SckCon, tipus, info1, long1);
+    char tipus[4];
+    char info1[9999];
+    int long1;
+
+    int res2 = RepiDesconstMis(SckCon, tipus, info1, &long1);
     if(res2 == -1){
-        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
+        sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(&CodiRes));
         return -1;
     }
     else if(res2 == -2){
@@ -126,8 +127,8 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
         return -3;
     }
     
-    memcpy(Fitx, info1, *long1);
-    *LongFitx = *long1;
+    memcpy(Fitx, info1, long1);
+    *LongFitx = long1;
     if (strcmp(tipus, "COR") == 0) {
         // El fitxer existeix
         sprintf(TextRes, "Tot bé, el fitxer existeix al servidor\0");
@@ -180,10 +181,8 @@ int UEBc_TancaConnexio(int SckCon, char *TextRes)
 int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPrem, int *portTCPrem, char *TextRes)
 {
     int CodiRes;
-    char ipRem[16];
-    char ipLoc[16];
-    int res1 = TCP_TrobaAdrSockLoc(SckCon, ipLoc, portTCPloc);
-    int res2 = TCP_TrobaAdrSockRem(SckCon, ipRem, portTCPrem);
+    int res1 = TCP_TrobaAdrSockLoc(SckCon, IPloc, portTCPloc);
+    int res2 = TCP_TrobaAdrSockRem(SckCon, IPrem, portTCPrem);
 
     if((res1 == -1)){
         sprintf(TextRes, "TCP_TrobaAdrSockLoc(): %s", T_ObteTextRes(&CodiRes));
@@ -196,7 +195,7 @@ int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
     }
 
     sprintf(TextRes, "Tot bé\0");
-    return res1;
+    return 0;
 }
 
 
@@ -237,23 +236,20 @@ int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
 int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
     char SeqBytes[10006];
-    int LongSeqBytes = 0;
-
-    int campTipus = strlen(tipus);
+    int campTipus = (int)strlen(tipus);
 
     if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") != 0)){
         return -2;
     }
 
-    char longAux[5];
+    char longAux[4];
     sprintf(longAux, "%.4d", long1);
 
-    strcat(SeqBytes, tipus);
-    strcat(SeqBytes, longAux);
-    memcpy(SeqBytes+7, info1, long1);
-    LongSeqBytes = 7 + long1;
+    memcpy(SeqBytes, tipus, campTipus);
+    memcpy(SeqBytes+campTipus, longAux, 4);
+    memcpy(SeqBytes+campTipus+4, info1, long1);
 
-    if(TCP_Envia(SckCon, SeqBytes, LongSeqBytes) == -1){
+    if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
         return -1;
     }
 
@@ -278,13 +274,12 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
 {
 	char SeqBytes[10006];
-    int LongSeqBytes;
-    int res = TCP_Rep(SckCon, SeqBytes, LongSeqBytes);
+    int bytesRebuts = TCP_Rep(SckCon, SeqBytes, sizeof(SeqBytes));
     
-    if(res == -1){
+    if(bytesRebuts == -1){
         return -1;
     }
-    else if(res == 0){
+    else if(bytesRebuts == 0){
         return -3;  
     }
     else{
@@ -296,7 +291,7 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
         longAux[4] = '\0';
         *long1 = atoi(longAux);
 
-        if((LongSeqBytes < 8) || (strcmp(tipus, "OBT") == 0) || ((LongSeqBytes - 7) != *long1)){
+        if((bytesRebuts < 8) || (strcmp(tipus, "OBT") == 0) || ((bytesRebuts - 7) != *long1)){
             return -2;
         }
         else{

@@ -116,10 +116,9 @@ int UEBs_AcceptaConnexio(int SckEsc, char *TextRes)
 int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes)
 {
     int CodiRes;
-    char *info1; //nom fitxer
-    int *long1; //mida caracters nom fitxer
+    int long1; //mida caracters nom fitxer
     
-    int res = RepiDesconstMis(SckCon, TipusPeticio, info1, long1);
+    int res = RepiDesconstMis(SckCon, TipusPeticio, NomFitx, &long1);
     if(res == -1){
         sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -132,57 +131,64 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
         sprintf(TextRes, "El client ha tancat la connexió.");
         return -3;
     }
-
-    //Buscar i treure informació del NomFitxer rebut
-    int file, bytesFitxer;
-    char nomfitxer[200], contingutFitxer[10000];
-    file = open(nomfitxer, O_RDONLY);
-    bytesFitxer = read(file, contingutFitxer, 10000);
-
-    if(info1[0] != '/'){
+    if(NomFitx[0] != '/'){
         sprintf(TextRes, "El nom del fitxer ha de començar amb '/'");
         return -4;
     }
-    if(bytesFitxer == -1){
-        sprintf(TextRes, "Fitxer no es pot llegir correctament.");
-        return -4;
-    }
-    if(bytesFitxer == 10000){
-        sprintf(TextRes, "Mida del fitxer més gran de la permesa.");
-        return -4;
-    }
 
+
+    //Buscar i treure informació del NomFitxer rebut
+    char contingutFitxer[10000];
+    char nomFitxer[200];
+    strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
+
+
+    int file = open(nomFitxer, O_RDONLY);
     char tipusEnv[3]; 
     int longEnv;
+    char infoEnv[10000];
     if(file == -1 ){ //fitxer no existeix
         memcpy(tipusEnv, "ERR", 3);
         longEnv = 18;
-        char infoEnv[longEnv];
         memcpy(infoEnv, "1 fitxer no trobat", longEnv);
+    }
+    else{
+        int bytesFitxer = read(file, contingutFitxer, sizeof(infoEnv));
+        if(bytesFitxer == -1){
+            sprintf(TextRes, "Fitxer no es pot llegir correctament.");
+            close(file);
+            return -4;
+        }
+        if(bytesFitxer >= sizeof(infoEnv)){
+            sprintf(TextRes, "Mida del fitxer més gran de la permesa.");
+            close(file);
+            return -4;
+        }
 
-        ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
+        memcpy(tipusEnv, "COR", 3);
+        longEnv = bytesFitxer;
+        memcpy(infoEnv, contingutFitxer, longEnv);
+        close(file);
+    }
+
+    int res2 = ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
+    if(res2 == -1){
+        sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
+        return -1;
+    }
+    else if(res2 == -2){
+        sprintf(TextRes, "Protocol incorrecte.");
+        return -2;
+    }
+
+    // Resultat
+    if(file == -1){
         sprintf(TextRes, "Tot bé, fitxer no existeix.");
         return 1;
     }
     else{
-        memcpy(tipusEnv, "COR", 3);
-        longEnv = bytesFitxer-1; // -1 per treure EOF
-        char infoEnv[longEnv];
-        memcpy(infoEnv, contingutFitxer, longEnv);
-
-        int res2 = ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
-        if(res2 == -1){
-            sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
-            return -1;
-        }
-        else if(res2 == -2){
-            sprintf(TextRes, "Protocol incorrecte.");
-            return -2;
-        }
-        else{
-	        sprintf(TextRes, "Tot bé, el fitxer existeix al servidor.");
-            return 0;
-        }
+        sprintf(TextRes, "Tot bé, el fitxer existeix al servidor.");
+        return 0;
     }
 }
 
@@ -240,7 +246,7 @@ int UEBs_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
     }
 
     sprintf(TextRes, "Tot bé\0");
-    return res1;
+    return 0;
 }
 
 
@@ -281,9 +287,7 @@ int UEBs_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
 int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
 	char SeqBytes[10006];
-    int LongSeqBytes = 0;
-
-    int campTipus = strlen(tipus);
+    int campTipus = (int)strlen(tipus);
 
     if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") == 0)){
         return -2;
@@ -292,12 +296,11 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
     char longAux[5];
     sprintf(longAux, "%.4d", long1);
 
-    strcat(SeqBytes, tipus);
-    strcat(SeqBytes, longAux);
-    memcpy(SeqBytes+7, info1, long1);
-    LongSeqBytes = 7 + long1;
+    memcpy(SeqBytes, tipus, campTipus);
+    memcpy(SeqBytes+campTipus, longAux, 4);
+    memcpy(SeqBytes+campTipus+4, info1, long1);
 
-    if(TCP_Envia(SckCon, SeqBytes, LongSeqBytes) == -1){
+    if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
         return -1;
     }
 
@@ -322,13 +325,11 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
 {
 	char SeqBytes[10006];
-    int LongSeqBytes;
-    int res = TCP_Rep(SckCon, SeqBytes, LongSeqBytes);
-    
-    if(res == -1){
+    int bytesRebuts = TCP_Rep(SckCon, SeqBytes, sizeof(SeqBytes));
+    if(bytesRebuts == -1){
         return -1;
     }
-    else if(res == 0){
+    else if(bytesRebuts == 0){
         return -3;  
     }
     else{
@@ -340,7 +341,7 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
         longAux[4] = '\0';
         *long1 = atoi(longAux);
 
-        if((LongSeqBytes < 8) || (strcmp(tipus, "OBT") != 0) || ((LongSeqBytes - 7) != *long1)){
+        if((bytesRebuts < 8) || (strcmp(tipus, "OBT") != 0) || ((bytesRebuts - 7) != *long1)){
             return -2;
         }
         else{
