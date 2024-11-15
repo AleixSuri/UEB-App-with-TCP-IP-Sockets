@@ -42,8 +42,7 @@ int main(int argc,char *argv[])
 
     // Variables per mesurar el temps
     struct timespec start, end;
-    double elapsed_time;
-    
+
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
     printf("Vols sortir o fer una petició? (0-Sortir, 1-Obtenir):\n");
@@ -89,9 +88,11 @@ int main(int argc,char *argv[])
             printf("Connexió TCP @sck cli %s:%d @sck ser %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
 
             // Obtenir fitxer
-            clock_gettime(CLOCK_MONOTONIC, &start);
-            
-            int obtFit = UEBc_ObteFitxer(sckCon, NomFitx, Fitx, &LongFitx, TextRes);
+            gettimeofday(&start, NULL);
+            char nomAux[200];
+            memset(nomAux, 0, sizeof(nomAux));
+            memcpy(nomAux, NomFitx, (int) strlen(NomFitx));
+            int obtFit = UEBc_ObteFitxer(sckCon, nomAux, Fitx, &LongFitx, TextRes);
             if(obtFit == -1 || obtFit == -2){
                 printf("UEBc_ObteFitxer(): %s\n", TextRes);
                 exit(-1);
@@ -109,9 +110,10 @@ int main(int argc,char *argv[])
                 exit(-1);
             }
 
-            clock_gettime(CLOCK_MONOTONIC, &end);
-            // Calcular temps transcorregut
-            elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+            gettimeofday(&end, NULL);
+            long seconds = end.tv_sec - start.tv_sec;
+            long nanoseconds = end.tv_nsec - start.tv_nsec;
+            double elapsed = seconds + nanoseconds*1e-9;
 
             // Guardar fitxer
             if(obtFit == 0){
@@ -137,11 +139,11 @@ int main(int argc,char *argv[])
             }
 
             // Mostrar el temps
-            printf("\nTemps de resposta: %d \n", elapsed_time);
+            printf("\n\nTemps de resposta: %.9f segons \n", elapsed);
 
             // Tornar a demanar?
             printf("\n\nVols obtenir un fitxer o acabar? (1-Obtenir, 0-Acabar):\n");
-            scanf("%d", &op);
+            scanf("%d", &op); 
             if(op != 0 && op == 1){
                 // Netejar variables i demanar informacio
                 char IPserAux[16];

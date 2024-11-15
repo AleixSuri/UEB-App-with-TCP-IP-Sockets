@@ -98,9 +98,10 @@ int UEBc_DemanaConnexio(const char *IPser, int portTCPser, char *TextRes)
 int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, char *TextRes)
 {
 	int CodiRes;
-    
+    char nomFitxAux[200];
+    memcpy(nomFitxAux, NomFitx, strlen(NomFitx)-1);
     // Envia la petició amb el tipus "OBT" per demanar el fitxer
-    int res = ConstiEnvMis(SckCon, "OBT", NomFitx, (int)strlen(NomFitx));
+    int res = ConstiEnvMis(SckCon, "OBT", NomFitx, strlen(NomFitx));
     if(res == -1){
         sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -112,7 +113,7 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
 
     // Rebre fitxer del servidor
     char tipus[4];
-    char info1[9999];
+    char info1[10000];
     int long1;
 
     int res2 = RepiDesconstMis(SckCon, tipus, info1, &long1);
@@ -131,14 +132,23 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
     
     memcpy(Fitx, info1, long1);
     *LongFitx = long1;
-    if (strcmp(tipus, "COR") == 0) {
+    if(compara_vectors(tipus, "COR", 3) == 0) {
         // El fitxer existeix al servidor
         sprintf(TextRes, "Tot bé, el fitxer existeix al servidor\0");
         return 0;
     }
     else{
         // El fitxer no existeix al servidor
-        sprintf(TextRes, "Tot bé, el fitxer no existeix al servidor\0");
+        if(compara_vectors(info1, "fitxer no comença per /", 23) == 0){
+            sprintf(TextRes, "Error, fitxer no comença per /\0");
+        }
+        else if(compara_vectors(info1, "1 fitxer no trobat", 18) == 0){
+            sprintf(TextRes, "Tot bé, el fitxer no existeix al servidor\0");
+        }
+        else{
+            sprintf(TextRes, "Error, el fitxer solicitat és massa gran\0");
+        }
+        
         return 1;
     }
 }
@@ -239,18 +249,16 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
     // Ajuntar missatge PUEB
     char SeqBytes[10006];
-    int campTipus = (int)strlen(tipus);
-
-    if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") != 0)){
+    if((long1 > 9999) || (compara_vectors(tipus, "OBT", 3) == 1)){
         return -2;
     }
 
-    char longAux[5];
+    char longAux[4];
     sprintf(longAux, "%.4d", long1);
 
-    memcpy(SeqBytes, tipus, campTipus);
-    memcpy(SeqBytes+campTipus, longAux, 4);
-    memcpy(SeqBytes+campTipus+4, info1, long1);
+    memcpy(SeqBytes, tipus, 3);
+    memcpy(SeqBytes+3, longAux, 4);
+    memcpy(SeqBytes+7, info1, long1);
 
     // Envia missatge
     if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
@@ -289,14 +297,12 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
     }
     else{
         memcpy(tipus, SeqBytes, 3);
-        tipus[3] = '\0';
 
-        char longAux[5];
+        char longAux[4];
         memcpy(longAux, SeqBytes+3, 4);
-        longAux[4] = '\0';
         *long1 = atoi(longAux);
 
-        if((bytesRebuts < 8) || (strcmp(tipus, "OBT") == 0) || ((bytesRebuts - 7) != *long1)){
+        if((bytesRebuts < 8) || (compara_vectors(tipus, "OBT", 3) == 0) || ((bytesRebuts - 7) != *long1)){
             return -2;
         }
         else{
@@ -304,4 +310,19 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
             return 0;
         } 
     }
+}
+
+/* Compara dos vectors de caracters                                       */
+/*                                                                        */
+/* Retorna:                                                               */
+/*  0 son iguals                                                          */
+/*  1 no son iguals                                                       */
+int compara_vectors(const char *vec1, const char *vec2, int mida) {
+    int i;
+    for (i = 0; i < mida; i++) {
+        if (vec1[i] != vec2[i]) {
+            return 1;  // Si alguna posició és diferent, retorna false
+        }
+    }
+    return 0;  // Si no hi ha cap diferència, retorna true
 }

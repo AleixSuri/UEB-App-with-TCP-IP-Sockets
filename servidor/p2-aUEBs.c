@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 
 #include "p2-tTCP.h"
 #include "p2-aUEBs.h"
@@ -126,13 +127,16 @@ int UEBs_AcceptaConnexio(int SckEsc, char *TextRes)
 /* -3 si l'altra part tanca la connexió;                                  */
 /* -4 si hi ha problemes amb el fitxer de la petició (p.e., nomfitxer no  */
 /*  comença per /, fitxer no es pot llegir, fitxer massa gran, etc.).     */
-int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes)
+int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes, char *TextTemps)
 {
     int CodiRes;
     int long1; //mida caracters nom fitxer
+    // Variables per mesurar el temps
+    struct timespec start, end;
     
     // Rep missatge PUEB OBT
     int res = RepiDesconstMis(SckCon, TipusPeticio, NomFitx, &long1);
+    TipusPeticio[3] = '\0';
     if(res == -1){
         sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -149,7 +153,7 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
 
     // Llegir arrel llocUEB
     char arrelUEB[200] = {0};
-    char linia[50], opcio[20], valor[20];
+    char linia[50], opcio[30], valor[40];
     FILE *fp;
     fp = fopen("p2-serUEB.cfg", "r");
     if(fp == NULL){
@@ -167,31 +171,32 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
             strncpy(arrelUEB, valor, sizeof(arrelUEB) - 1);
         }
     }
-    int midaArrel = (int)strlen(arrelUEB);
-
-    // Buscar i treure informació del fitxer NomFitxer rebut
-    char contingutFitxer[10000];
-    char nomFitxer[200];
-    strncpy(nomFitxer, &arrelUEB[1], midaArrel); // treure '/' NomFitxer
-    strcat(nomFitxer, NomFitx);
 
     
-
         // Obre fitxer
-    
-    char tipusEnv[4]; 
+    char tipusEnv[3]; 
     int longEnv;
     char infoEnv[10000];
     int file;
     if(NomFitx[0] != '/'){ // No comença per /
         sprintf(TextRes, "El nom del fitxer ha de començar amb '/'");
         memcpy(tipusEnv, "ERR", 3);
-        longEnv = (int)strlen("fitxer comença per /");
-        memcpy(infoEnv, "fitxer comença per /", longEnv);
+        longEnv = (int)strlen("fitxer no comença per /\0");
+        memcpy(infoEnv, "fitxer no comença per /", longEnv);
             
         file = -4;
     }
     else{ // Nom fitxer comença per /
+        // Buscar i treure informació del fitxer NomFitxer rebut
+        char contingutFitxer[10000];
+        char nomFitxer[200];
+        
+        NomFitx[long1] = '\0';
+        memcpy(nomFitxer, arrelUEB+1, strlen(arrelUEB)-1);
+        memcpy(nomFitxer + strlen(nomFitxer), NomFitx, long1+1);
+
+        
+
         file = open(nomFitxer, O_RDONLY);
         if(file == -1 ){ // fitxer no existeix
             memcpy(tipusEnv, "ERR", 3);
@@ -207,15 +212,15 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
             }
             
             // fitxer molt gran
-            if(bytesFitxer >= 10000){
+            if(bytesFitxer > 9999){
                 sprintf(TextRes, "Fitxer massa gran per ser enviat.");
                 memcpy(tipusEnv, "ERR", 3);
-                longEnv = (int)strlen("fitxer massa gran");
+                longEnv = (int)strlen("fitxer massa gran\0");
                 memcpy(infoEnv, "fitxer massa gran", longEnv);
                 file = -4;        
             }
             else{
-                strcpy(tipusEnv, "COR");
+                memcpy(tipusEnv, "COR", 3);
                 longEnv = bytesFitxer;
                 memcpy(infoEnv, contingutFitxer, longEnv);
                 close(file);
@@ -224,7 +229,19 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
     }
 
     // Enviar missatge PUEB amb contingut del fitxer o errors
+    gettimeofday(&start, NULL);
     int res2 = ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
+    gettimeofday(&end, NULL);
+
+    // Variables mesura temps
+    long seconds = end.tv_sec - start.tv_sec;
+    long nanoseconds = end.tv_nsec - start.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
+    double vef = (longEnv/8)/elapsed;
+
+    // Guardar el temps i velocitat   
+    sprintf(TextTemps, "Temps d'enviament: %.9f segons i %.2f bps\n", elapsed, vef);
+
     if(res2 == -1){
         sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -344,17 +361,17 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
     // Ajuntar missatge PUEB
 	char SeqBytes[10006];
-    int campTipus = (int)strlen(tipus);
-    if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") == 0)){
+    if((long1 > 9999) || (compara_vectors(tipus, "OBT", 3) == 0)){
         return -2;
     }
 
-    char longAux[5];
+    char longAux[4];
     sprintf(longAux, "%.4d", long1);
+    memcpy(longAux, longAux, 4);
 
-    memcpy(SeqBytes, tipus, campTipus);
-    memcpy(SeqBytes+campTipus, longAux, 4);
-    memcpy(SeqBytes+campTipus+4, info1, long1);
+    memcpy(SeqBytes, tipus, 3);
+    memcpy(SeqBytes+3, longAux, 4);
+    memcpy(SeqBytes+7, info1, long1);
 
     // Envia missatge
     if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
@@ -384,6 +401,7 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
     // Desglossa missatge PUEB
 	char SeqBytes[10006];
     int bytesRebuts = TCP_Rep(SckCon, SeqBytes, sizeof(SeqBytes));
+
     if(bytesRebuts == -1){
         return -1;
     }
@@ -392,14 +410,12 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
     }
     else{
         memcpy(tipus, SeqBytes, 3);
-        tipus[3] = '\0';
 
-        char longAux[5];
+        char longAux[4];
         memcpy(longAux, SeqBytes+3, 4);
-        longAux[4] = '\0';
         *long1 = atoi(longAux);
 
-        if((bytesRebuts < 8) || (strcmp(tipus, "OBT") != 0) || ((bytesRebuts - 7) != *long1)){
+        if((bytesRebuts < 8) || (compara_vectors(tipus, "OBT", 3) == 1) || ((bytesRebuts - 7) != *long1)){
             return -2;
         }
         else{
@@ -407,4 +423,20 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
             return 0;
         } 
     }    
+}
+
+
+/* Compara dos vectors de caracters                                       */
+/*                                                                        */
+/* Retorna:                                                               */
+/*  0 son iguals                                                          */
+/*  1 no son iguals                                                       */
+int compara_vectors(const char *vec1, const char *vec2, int mida) {
+    int i;
+    for (i = 0; i < mida; i++) {
+        if (vec1[i] != vec2[i]) {
+            return 1;  // Si alguna posició és diferent, retorna false
+        }
+    }
+    return 0;  // Si no hi ha cap diferència, retorna true
 }

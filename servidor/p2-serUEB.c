@@ -40,7 +40,6 @@ int main(int argc,char *argv[])
     FILE *fp;
     char linia[50], opcio[20], valor[20];
     int portTCP;
-    int fileLog;
     // char arrelUEB[200] = {0};
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
@@ -107,33 +106,39 @@ int main(int argc,char *argv[])
         dprintf(fileLog, "Connexió TCP @sck ser %s:%d @sck cli %s:%d\n", IPloc, portTCPloc, IPrem, portTCPrem);
         
         // Servir peticio
+        char TextTemps[300];
         char NomFitx[200];
         char TipusPeticio[4];
-        int servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
+        int bytesEnviats;
+        int servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes, TextTemps);
         while(servPet != -3){
-            // Client tanca connexio
+            // Client tanca connexio 
             if(servPet != -3){
                 printf("Petició %s del fitxer %s\n", TipusPeticio, NomFitx);
                 dprintf(fileLog, "Petició %s del fitxer %s\n", TipusPeticio, NomFitx);
             }
 
             // Errors
-            if(servPet == -1 || servPet == -2 || servPet == -4){
+            if(servPet == -1 || servPet == -2){
                 printf("UEBc_ServeixPeticio(): %s\n\n", TextRes);
                 dprintf(fileLog, "UEBc_ServeixPeticio(): %s\n\n", TextRes);
                 exit(-1);
             }
 
             // Tot correcte
-            if(servPet == 0 || servPet == 1){
+            if(servPet == 0 || servPet == 1 || servPet == -4){
                 printf("UEBc_ServeixPeticio(): %s\n\n", TextRes);
-                dprintf(fileLog, "UEBc_ServeixPeticio(): %s\n\n", TextRes);
+                dprintf(fileLog, "UEBc_ServeixPeticio(): %s\n", TextRes);
+
+                // Mostrar el temps   
+                printf("%s\n", TextTemps);
+                dprintf(fileLog, "%s\n", TextTemps);            
             }
         
             // Netejar variables i servir peticio
             memset(NomFitx, 0, sizeof(NomFitx));
             memset(TipusPeticio, 0, sizeof(TipusPeticio));
-            servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes);
+            servPet = UEBs_ServeixPeticio(sckCon, TipusPeticio, NomFitx, TextRes, TextTemps);
         }
 
         // Client tanca connexio
