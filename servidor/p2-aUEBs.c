@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <time.h>
 
 #include "p2-tTCP.h"
 #include "p2-aUEBs.h"
@@ -57,14 +59,26 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1);
 int UEBs_IniciaServ(int *SckEsc, int portTCPser, char *TextRes)
 {
     int CodiRes;
-	*SckEsc = TCP_CreaSockServidor("0.0.0.0", portTCPser);
-    if(*SckEsc == -1){
-        sprintf(TextRes, "TCP_CreaSockServidor(): %s", T_ObteTextRes(&CodiRes));
-        return -1;
+    int intent = 0;
+    // 5 intents per trobar un socket lliure
+    while(intent < 5){
+        *SckEsc = TCP_CreaSockServidor("0.0.0.0", portTCPser);
+        
+        // Socket creat correctament
+        if (*SckEsc >= 0) {
+            // Si el socket es crea correctament, surt del bucle
+            sprintf(TextRes, "Servidor UEB iniciat al #portTCP: %d", portTCPser);
+            return *SckEsc;
+        }
+        
+        printf("Port %d en ús, provant amb el següent...\n", portTCPser);
+        portTCPser += 101;  // Incrementa el port i prova de nou
+        intent++;      // Incrementa el comptador d'intents
+        
     }
 
-    sprintf(TextRes, "Socket servidor creat correctament\0");
-    return *SckEsc;
+    sprintf(TextRes, "TCP_CreaSockServidor(): %s", T_ObteTextRes(&CodiRes));
+    return -1;
 }
 
 /* Accepta una connexió d'un C UEB que arriba a través del socket TCP     */
@@ -113,12 +127,16 @@ int UEBs_AcceptaConnexio(int SckEsc, char *TextRes)
 /* -3 si l'altra part tanca la connexió;                                  */
 /* -4 si hi ha problemes amb el fitxer de la petició (p.e., nomfitxer no  */
 /*  comença per /, fitxer no es pot llegir, fitxer massa gran, etc.).     */
-int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes)
+int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *TextRes, char *TextTemps)
 {
     int CodiRes;
     int long1; //mida caracters nom fitxer
+    // Variables per mesurar el temps
+    struct timespec start, end;
     
+    // Rep missatge PUEB OBT
     int res = RepiDesconstMis(SckCon, TipusPeticio, NomFitx, &long1);
+    TipusPeticio[3] = '\0';
     if(res == -1){
         sprintf(TextRes, "TCP_Rep(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -131,47 +149,99 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
         sprintf(TextRes, "El client ha tancat la connexió.");
         return -3;
     }
-    if(NomFitx[0] != '/'){
-        sprintf(TextRes, "El nom del fitxer ha de començar amb '/'");
-        return -4;
+    
+
+    // Llegir arrel llocUEB
+    char arrelUEB[200] = {0};
+    char linia[50], opcio[30], valor[40];
+    FILE *fp;
+    fp = fopen("p2-serUEB.cfg", "r");
+    if(fp == NULL){
+        perror("Error en obrir el fitxer de configuració.\n");
+        return -1;
+    }
+    while(fgets(linia, sizeof(linia), fp) != NULL){
+        if (sscanf(linia, "%s %s", opcio, valor) != 2) {
+            perror("Format del fitxer cfg incorrecte.\n");
+            return -1;
+        }
+
+        // Comprovar l'opció que estem llegint 
+        if (strcmp(opcio, "#Arrel") == 0) {
+            strncpy(arrelUEB, valor, sizeof(arrelUEB) - 1);
+        }
     }
 
-
-    //Buscar i treure informació del NomFitxer rebut
-    char contingutFitxer[10000];
-    char nomFitxer[200];
-    strcpy(nomFitxer, &NomFitx[1]); //treure '/' NomFitxer
-
-
-    int file = open(nomFitxer, O_RDONLY);
-    char tipusEnv[4]; 
+    
+        // Obre fitxer
+    char tipusEnv[3]; 
     int longEnv;
     char infoEnv[10000];
-    if(file == -1 ){ //fitxer no existeix
+    int file;
+    if(NomFitx[0] != '/'){ // No comença per /
+        sprintf(TextRes, "El nom del fitxer ha de començar amb '/'");
         memcpy(tipusEnv, "ERR", 3);
-        longEnv = 18;
-        memcpy(infoEnv, "1 fitxer no trobat", longEnv);
+        longEnv = (int)strlen("fitxer no comença per /\0");
+        memcpy(infoEnv, "fitxer no comença per /", longEnv);
+            
+        file = -4;
     }
-    else{
-        int bytesFitxer = read(file, contingutFitxer, sizeof(infoEnv));
-        if(bytesFitxer == -1){
-            sprintf(TextRes, "Fitxer no es pot llegir correctament.");
-            close(file);
-            return -4;
-        }
-        if(bytesFitxer >= sizeof(infoEnv)){
-            sprintf(TextRes, "Mida del fitxer més gran de la permesa.");
-            close(file);
-            return -4;
-        }
+    else{ // Nom fitxer comença per /
+        // Buscar i treure informació del fitxer NomFitxer rebut
+        char contingutFitxer[10000];
+        char nomFitxer[200];
+        
+        NomFitx[long1] = '\0';
+        memcpy(nomFitxer, arrelUEB+1, strlen(arrelUEB)-1);
+        memcpy(nomFitxer + strlen(nomFitxer), NomFitx, long1+1);
 
-        strcpy(tipusEnv, "COR");
-        longEnv = bytesFitxer;
-        memcpy(infoEnv, contingutFitxer, longEnv);
-        close(file);
+        
+
+        file = open(nomFitxer, O_RDONLY);
+        if(file == -1 ){ // fitxer no existeix
+            memcpy(tipusEnv, "ERR", 3);
+            longEnv = (int)strlen("1 fitxer no trobat");
+            memcpy(infoEnv, "1 fitxer no trobat", longEnv);
+        }
+        else{ // fitxer existeix
+            int bytesFitxer = read(file, contingutFitxer, 10000);
+            if(bytesFitxer == -1){
+                sprintf(TextRes, "Fitxer no es pot llegir correctament.");
+                close(file);
+                return -4;
+            }
+            
+            // fitxer molt gran
+            if(bytesFitxer > 9999){
+                sprintf(TextRes, "Fitxer massa gran per ser enviat.");
+                memcpy(tipusEnv, "ERR", 3);
+                longEnv = (int)strlen("fitxer massa gran\0");
+                memcpy(infoEnv, "fitxer massa gran", longEnv);
+                file = -4;        
+            }
+            else{
+                memcpy(tipusEnv, "COR", 3);
+                longEnv = bytesFitxer;
+                memcpy(infoEnv, contingutFitxer, longEnv);
+                close(file);
+            }
+        }
     }
 
+    // Enviar missatge PUEB amb contingut del fitxer o errors
+    gettimeofday(&start, NULL);
     int res2 = ConstiEnvMis(SckCon, tipusEnv, infoEnv, longEnv);
+    gettimeofday(&end, NULL);
+
+    // Variables mesura temps
+    long seconds = end.tv_sec - start.tv_sec;
+    long nanoseconds = end.tv_nsec - start.tv_nsec;
+    double elapsed = seconds + nanoseconds*1e-9;
+    double vef = (longEnv/8)/elapsed;
+
+    // Guardar el temps i velocitat   
+    sprintf(TextTemps, "Temps d'enviament: %.9f segons i %.2f bps\n", elapsed, vef);
+
     if(res2 == -1){
         sprintf(TextRes, "TCP_Envia(): %s", T_ObteTextRes(&CodiRes));
         return -1;
@@ -181,10 +251,13 @@ int UEBs_ServeixPeticio(int SckCon, char *TipusPeticio, char *NomFitx, char *Tex
         return -2;
     }
 
-    // Resultat
+        // Canvi de missatge depenen si existeix o no o massa gran
     if(file == -1){
         sprintf(TextRes, "Tot bé, fitxer no existeix.");
         return 1;
+    }
+    else if(file == -4){
+        return -4;
     }
     else{
         sprintf(TextRes, "Tot bé, el fitxer existeix al servidor.");
@@ -286,19 +359,21 @@ int UEBs_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPr
 /* -2 si protocol és incorrecte (longitud camps, tipus de peticio).       */
 int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 {
+    // Ajuntar missatge PUEB
 	char SeqBytes[10006];
-    int campTipus = (int)strlen(tipus);
-    if((campTipus != 3) || (long1 > 9999) || (strcmp(tipus, "OBT") == 0)){
+    if((long1 > 9999) || (compara_vectors(tipus, "OBT", 3) == 0)){
         return -2;
     }
 
-    char longAux[5];
+    char longAux[4];
     sprintf(longAux, "%.4d", long1);
+    memcpy(longAux, longAux, 4);
 
-    memcpy(SeqBytes, tipus, campTipus);
-    memcpy(SeqBytes+campTipus, longAux, 4);
-    memcpy(SeqBytes+campTipus+4, info1, long1);
+    memcpy(SeqBytes, tipus, 3);
+    memcpy(SeqBytes+3, longAux, 4);
+    memcpy(SeqBytes+7, info1, long1);
 
+    // Envia missatge
     if(TCP_Envia(SckCon, SeqBytes, 3+4+long1) == -1){
         return -1;
     }
@@ -323,8 +398,10 @@ int ConstiEnvMis(int SckCon, const char *tipus, const char *info1, int long1)
 /* -3 si l'altra part tanca la connexió.                                  */
 int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
 {
+    // Desglossa missatge PUEB
 	char SeqBytes[10006];
     int bytesRebuts = TCP_Rep(SckCon, SeqBytes, sizeof(SeqBytes));
+
     if(bytesRebuts == -1){
         return -1;
     }
@@ -333,14 +410,12 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
     }
     else{
         memcpy(tipus, SeqBytes, 3);
-        tipus[3] = '\0';
 
-        char longAux[5];
+        char longAux[4];
         memcpy(longAux, SeqBytes+3, 4);
-        longAux[4] = '\0';
         *long1 = atoi(longAux);
 
-        if((bytesRebuts < 8) || (strcmp(tipus, "OBT") != 0) || ((bytesRebuts - 7) != *long1)){
+        if((bytesRebuts < 8) || (compara_vectors(tipus, "OBT", 3) == 1) || ((bytesRebuts - 7) != *long1)){
             return -2;
         }
         else{
@@ -348,4 +423,20 @@ int RepiDesconstMis(int SckCon, char *tipus, char *info1, int *long1)
             return 0;
         } 
     }    
+}
+
+
+/* Compara dos vectors de caracters                                       */
+/*                                                                        */
+/* Retorna:                                                               */
+/*  0 son iguals                                                          */
+/*  1 no son iguals                                                       */
+int compara_vectors(const char *vec1, const char *vec2, int mida) {
+    int i;
+    for (i = 0; i < mida; i++) {
+        if (vec1[i] != vec2[i]) {
+            return 1;  // Si alguna posició és diferent, retorna false
+        }
+    }
+    return 0;  // Si no hi ha cap diferència, retorna true
 }

@@ -21,3 +21,5 @@ int UEBc_ObteFitxer(int SckCon, const char *NomFitx, char *Fitx, int *LongFitx, 
 int UEBc_TancaConnexio(int SckCon, char *TextRes);
 int UEBc_TrobaAdrSckConnexio(int SckCon, char *IPloc, int *portTCPloc, char *IPrem, int *portTCPrem, char *TextRes);
 /* int UEBc_FuncioExterna(arg1, arg2...);                                 */
+
+int compara_vectors(const char *vec1, const char *vec2, int mida);
