@@ -58,7 +58,7 @@ int main(int argc,char *argv[])
 
         printf("@IPservidor:\n");
         scanf("%s", IPser);
-        printf("#portTCPservidor:\n");
+        printf("#portTCPservidor:\n"); 
         scanf("%d", &portTCPser);
 
         if(portTCPser == 0){
