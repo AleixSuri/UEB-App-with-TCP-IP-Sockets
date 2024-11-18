@@ -43,7 +43,7 @@ int main(int argc,char *argv[])
     // char arrelUEB[200] = {0};
 
  /* Expressions, estructures de control, crides a funcions, etc.          */
-    
+     
     // Obrir fitxer serUEB.log
     int fileLog = open("serUEB.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if(fileLog == -1){
